@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FlowMood: Interactive Particle Canvas</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "tertiary": "#75dcff",
+                "on-primary-fixed-variant": "#005228",
+                "on-primary": "#003919",
+                "on-error": "#690005",
+                "surface-container": "#1a211b",
+                "background": "#0e150f",
+                "error-container": "#93000a",
+                "on-primary-fixed": "#00210c",
+                "on-secondary-container": "#fffbff",
+                "secondary-container": "#cd01d1",
+                "primary": "#54e98a",
+                "on-background": "#dce5da",
+                "tertiary-container": "#00c3ee",
+                "surface-container-highest": "#2f372f",
+                "inverse-surface": "#dce5da",
+                "surface-bright": "#333b34",
+                "surface-container-high": "#242c25",
+                "surface-variant": "#2f372f",
+                "secondary": "#ffaaf6",
+                "on-tertiary-fixed": "#001f28",
+                "tertiary-fixed-dim": "#4cd6ff",
+                "outline-variant": "#3d4a3e",
+                "secondary-fixed": "#ffd7f6",
+                "on-secondary": "#5b005d",
+                "inverse-on-surface": "#2b322b",
+                "outline": "#869486",
+                "on-tertiary-fixed-variant": "#004e60",
+                "on-surface-variant": "#bbcbbb",
+                "primary-fixed-dim": "#4ae183",
+                "surface-dim": "#0e150f",
+                "on-secondary-fixed-variant": "#800083",
+                "on-secondary-fixed": "#380039",
+                "surface-container-lowest": "#09100a",
+                "surface-container-low": "#161d17",
+                "on-tertiary": "#003543",
+                "on-tertiary-container": "#004c5f",
+                "on-primary-container": "#005027",
+                "on-surface": "#dce5da",
+                "secondary-fixed-dim": "#ffaaf6",
+                "primary-fixed": "#6bfe9c",
+                "surface-tint": "#4ae183",
+                "error": "#ffb4ab",
+                "tertiary-fixed": "#b7eaff",
+                "surface": "#0e150f",
+                "primary-container": "#2ecc71",
+                "on-error-container": "#ffdad6",
+                "inverse-primary": "#006d37"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "unit": "4px",
+                "stack-lg": "32px",
+                "stack-sm": "8px",
+                "stack-md": "16px",
+                "gutter": "24px",
+                "container-padding-desktop": "40px",
+                "container-padding-mobile": "20px"
+            },
+            "fontFamily": {
+                "label-sm": ["Geist", "sans-serif"],
+                "body-lg": ["Inter", "sans-serif"],
+                "body-md": ["Inter", "sans-serif"],
+                "display-lg": ["Inter", "sans-serif"],
+                "headline-md": ["Inter", "sans-serif"]
+            },
+            "fontSize": {
+                "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0e150f;
+        }
+        canvas {
+            display: block;
+        }
+        .glass-panel {
+            backdrop-filter: blur(24px);
+            background: rgba(22, 29, 23, 0.7);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: rgba(255, 255, 255, 0.1);
+            height: 4px;
+            border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #54e98a;
+            margin-top: -6px;
+            box-shadow: 0 0 15px rgba(84, 233, 138, 0.8);
+            cursor: pointer;
+        }
+        .sidebar-transition {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-padding-mobile md:px-container-padding-desktop py-4 backdrop-blur-md bg-surface/10 border-b border-white/5">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-primary/10 p-2 rounded-full transition-colors" id="sidebarToggle" title="Toggle Settings">
+            settings
+        </button>
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md text-primary tracking-tight">Aether Flow</span>
+<span class="hidden md:block text-on-surface-variant/40">|</span>
+<span class="hidden md:block text-on-surface-variant font-label-sm text-label-sm">心流音画：情绪粒子共振画布</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity" data-icon="tune">tune</button>
+</div>
+</header>
+<!-- Background Canvas -->
+<canvas class="fixed inset-0 z-0" id="particleCanvas"></canvas>
+<!-- Collapsible Side Control Panel -->
+<aside class="fixed left-0 top-0 h-full z-40 flex flex-col py-24 px-6 glass-panel w-80 sidebar-transition translate-x-[-100%] overflow-y-auto" id="sidebar">
+<div class="mb-8">
+<h2 class="text-primary font-headline-md text-headline-md mb-1">Zen Control</h2>
+<p class="text-on-surface-variant text-label-sm">Digital Zen Philosophy</p>
+</div>
+<nav class="flex flex-col gap-6">
+<!-- Mood Selection -->
+<div class="space-y-3">
+<label class="text-on-surface-variant font-label-sm uppercase tracking-wider">情绪模式 (Mood)</label>
+<select class="w-full bg-surface-variant/50 border border-white/10 rounded-lg px-4 py-2 text-on-surface focus:ring-1 focus:ring-primary outline-none appearance-none" id="moodSelect">
+<option value="calm">沉静 (Calm)</option>
+<option value="cyberburst">赛博脉冲 (Cyberburst)</option>
+<option value="healing">愈合 (Healing)</option>
+</select>
+</div>
+<!-- Particle Count -->
+<div class="space-y-3">
+<div class="flex justify-between items-center">
+<label class="text-on-surface-variant font-label-sm uppercase tracking-wider">粒子密度</label>
+<span class="text-primary text-label-sm" id="countValue">800</span>
+</div>
+<input class="w-full" id="particleSlider" max="2000" min="200" step="100" type="range" value="800"/>
+</div>
+<!-- Particle Speed -->
+<div class="space-y-3">
+<div class="flex justify-between items-center">
+<label class="text-on-surface-variant font-label-sm uppercase tracking-wider">运动速度</label>
+<span class="text-primary text-label-sm" id="speedValue">1.0</span>
+</div>
+<input class="w-full" id="speedSlider" max="3.0" min="0.1" step="0.1" type="range" value="1.0"/>
+</div>
+<!-- Tail Effect -->
+<div class="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
+<label class="text-on-surface font-label-sm uppercase tracking-wider">尾流效果</label>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" id="tailToggle" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Wind Force Vertical Column -->
+<div class="space-y-3">
+<label class="text-on-surface-variant font-label-sm uppercase tracking-wider">气流扰动 (Wind)</label>
+<div class="flex flex-col gap-2">
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded border border-white/10 transition-colors flex items-center justify-center gap-2 group" onclick="setWind(0, -1)">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">north</span>
+<span class="text-label-sm text-on-surface-variant">向北</span>
+</button>
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded border border-white/10 transition-colors flex items-center justify-center gap-2 group" onclick="setWind(0, 1)">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">south</span>
+<span class="text-label-sm text-on-surface-variant">向南</span>
+</button>
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded border border-white/10 transition-colors flex items-center justify-center gap-2 group" onclick="setWind(-1, 0)">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">west</span>
+<span class="text-label-sm text-on-surface-variant">向西</span>
+</button>
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded border border-white/10 transition-colors flex items-center justify-center gap-2 group" onclick="setWind(1, 0)">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">east</span>
+<span class="text-label-sm text-on-surface-variant">向东</span>
+</button>
+</div>
+</div>
+<!-- Sound Toggle -->
+<div class="pt-6">
+<button class="w-full bg-primary text-on-primary-container font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all" id="audioToggle">
+<span class="material-symbols-outlined" id="audioIcon">volume_off</span>
+                激活环境音
+            </button>
+</div>
+</nav>
+</aside>
+<!-- Mobile Navigation (Bottom Bar) -->
+<nav class="fixed bottom-0 w-full z-50 md:hidden flex justify-around items-center px-4 pb-safe h-20 backdrop-blur-[40px] border-t border-white/10 bg-surface/30">
+<button class="flex flex-col items-center justify-center bg-primary/20 text-primary rounded-xl p-2 transition-transform active:scale-95">
+<span class="material-symbols-outlined">auto_awesome</span>
+<span class="text-label-sm">预设</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 transition-transform active:scale-95">
+<span class="material-symbols-outlined">air</span>
+<span class="text-label-sm">流动</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 transition-transform active:scale-95">
+<span class="material-symbols-outlined">volume_up</span>
+<span class="text-label-sm">声效</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 transition-transform active:scale-95">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="text-label-sm">存档</span>
+</button>
+</nav>
+<!-- Tooltip -->
+<div class="fixed bottom-24 md:bottom-8 right-8 z-40 flex flex-col items-end pointer-events-none opacity-40">
+<span class="text-on-surface-variant font-label-sm">点击释放粒子能量</span>
+<span class="text-on-surface-variant font-label-sm">移动鼠标引导流向</span>
+</div>
+<script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    const moodSelect = document.getElementById('moodSelect');
+    const particleSlider = document.getElementById('particleSlider');
+    const speedSlider = document.getElementById('speedSlider');
+    const tailToggle = document.getElementById('tailToggle');
+    const countValue = document.getElementById('countValue');
+    const speedValue = document.getElementById('speedValue');
+    const audioToggle = document.getElementById('audioToggle');
+    const audioIcon = document.getElementById('audioIcon');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+
+    let width, height;
+    let particles = [];
+    let mouse = { x: -1000, y: -1000 };
+    let wind = { x: 0, y: 0 };
+    let currentMood = 'calm';
+    let globalSpeedMultiplier = 1.0;
+    let tailsEnabled = true;
+    let audioContext = null;
+    let isAudioStarted = false;
+    let isSidebarOpen = false;
+
+    const MOOD_CONFIG = {
+        calm: {
+            colors: ['#54e98a', '#00c3ee', '#b7eaff'],
+            speed: 0.5,
+            friction: 0.98,
+            force: 0.05,
+            particleSize: 1.8,
+            background: '#0e150f',
+            glow: 15
+        },
+        cyberburst: {
+            colors: ['#ffaaf6', '#cd01d1', '#ffb4ab'],
+            speed: 2.2,
+            friction: 0.95,
+            force: 0.18,
+            particleSize: 2.8,
+            background: '#0e0a12',
+            glow: 25
+        },
+        healing: {
+            colors: ['#ffffff', '#b7eaff', '#ffaaf6'],
+            speed: 0.8,
+            friction: 0.99,
+            force: 0.03,
+            particleSize: 1.4,
+            background: '#0d110d',
+            glow: 12
+        }
+    };
+
+    function init() {
+        resize();
+        createParticles(800);
+        animate();
+    }
+
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+
+    function createParticles(count) {
+        particles = [];
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle());
+        }
+    }
+
+    class Particle {
+        constructor(isBurst = false, x, y) {
+            this.reset(isBurst, x, y);
+        }
+
+        reset(isBurst, x, y) {
+            this.x = x || Math.random() * width;
+            this.y = y || Math.random() * height;
+            this.vx = (Math.random() - 0.5) * 2;
+            this.vy = (Math.random() - 0.5) * 2;
+            const config = MOOD_CONFIG[currentMood];
+            this.size = Math.random() * config.particleSize + 0.5;
+            this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+            this.alpha = 0.6 + Math.random() * 0.4;
+            this.history = [];
+            this.historyLength = currentMood === 'cyberburst' ? 6 : 15;
+        }
+
+        update() {
+            const config = MOOD_CONFIG[currentMood];
+            const finalSpeed = config.speed * globalSpeedMultiplier;
+            
+            // Interaction
+            const dx = mouse.x - this.x;
+            const dy = mouse.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < 180) {
+                const angle = Math.atan2(dy, dx);
+                const push = (180 - dist) / 180 * config.force * globalSpeedMultiplier;
+                this.vx += Math.cos(angle) * push;
+                this.vy += Math.sin(angle) * push;
+            }
+
+            // Forces
+            this.vx += wind.x * 0.02;
+            this.vy += wind.y * 0.02;
+            this.vx *= config.friction;
+            this.vy *= config.friction;
+            
+            this.x += this.vx * finalSpeed;
+            this.y += this.vy * finalSpeed;
+
+            if (currentMood === 'healing') {
+                this.vy -= 0.015 * globalSpeedMultiplier;
+            }
+
+            // Boundaries
+            if (this.x < -10 || this.x > width + 10 || this.y < -10 || this.y > height + 10) {
+                if (currentMood === 'healing' && this.y < 0) {
+                    this.reset(false, Math.random() * width, height + 5);
+                } else {
+                    this.reset();
+                }
+            }
+
+            // Trails
+            if (tailsEnabled) {
+                this.history.push({x: this.x, y: this.y});
+                if (this.history.length > this.historyLength) {
+                    this.history.shift();
+                }
+            } else {
+                this.history = [];
+            }
+        }
+
+        draw() {
+            const config = MOOD_CONFIG[currentMood];
+            
+            // Draw Tails
+            if (tailsEnabled && this.history.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.size * 0.7;
+                ctx.lineCap = 'round';
+                ctx.globalAlpha = this.alpha * 0.3;
+                
+                ctx.moveTo(this.history[0].x, this.history[0].y);
+                for (let i = 1; i < this.history.length; i++) {
+                    ctx.lineTo(this.history[i].x, this.history[i].y);
+                }
+                ctx.stroke();
+            }
+
+            // Draw Core
+            ctx.beginPath();
+            ctx.shadowBlur = config.glow;
+            ctx.shadowColor = this.color;
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = this.alpha;
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; // Reset for performance
+        }
+    }
+
+    function animate() {
+        const config = MOOD_CONFIG[currentMood];
+        ctx.fillStyle = config.background;
+        
+        // Remove laser lines: no grid or crosshair rendering here
+        if (tailsEnabled) {
+            ctx.globalAlpha = 0.2; // Motion blur effect
+        } else {
+            ctx.globalAlpha = 1.0;
+        }
+        
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalAlpha = 1;
+
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+
+        requestAnimationFrame(animate);
+    }
+
+    /**
+     * UI & Control Logic
+     */
+    sidebarToggle.addEventListener('click', () => {
+        isSidebarOpen = !isSidebarOpen;
+        if (isSidebarOpen) {
+            sidebar.classList.remove('translate-x-[-100%]');
+            sidebar.classList.add('translate-x-0');
+        } else {
+            sidebar.classList.remove('translate-x-0');
+            sidebar.classList.add('translate-x-[-100%]');
+        }
+    });
+
+    moodSelect.addEventListener('change', (e) => {
+        currentMood = e.target.value;
+        createParticles(parseInt(particleSlider.value));
+        if (isAudioStarted) playZenNote(110, 'triangle', 2);
+    });
+
+    particleSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        countValue.innerText = val;
+        createParticles(val);
+    });
+
+    speedSlider.addEventListener('input', (e) => {
+        globalSpeedMultiplier = parseFloat(e.target.value);
+        speedValue.innerText = globalSpeedMultiplier.toFixed(1);
+    });
+
+    tailToggle.addEventListener('change', (e) => {
+        tailsEnabled = e.target.checked;
+    });
+
+    function setWind(x, y) {
+        wind.x = x * 3;
+        wind.y = y * 3;
+        setTimeout(() => {
+            wind.x = 0;
+            wind.y = 0;
+        }, 1200);
+        
+        if (isAudioStarted) {
+            playZenNote(110 + Math.abs(x+y)*50, 'sine', 0.8);
+        }
+    }
+
+    // Audio context initialization
+    function initAudio() {
+        if (audioContext) return;
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playZenNote(freq = 440, type = 'sine', duration = 0.5) {
+        if (!isAudioStarted || !audioContext) return;
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        gain.gain.setValueAtTime(0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.12, audioContext.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start();
+        osc.stop(audioContext.currentTime + duration);
+    }
+
+    audioToggle.addEventListener('click', () => {
+        if (!isAudioStarted) {
+            initAudio();
+            isAudioStarted = true;
+            audioIcon.innerText = 'volume_up';
+            audioToggle.classList.remove('bg-primary');
+            audioToggle.classList.add('bg-white/10', 'text-primary');
+            audioToggle.innerHTML = '<span class="material-symbols-outlined">volume_up</span> 正在运行';
+            playZenNote(440, 'sine', 1);
+        } else {
+            isAudioStarted = false;
+            audioIcon.innerText = 'volume_off';
+            audioToggle.classList.add('bg-primary');
+            audioToggle.classList.remove('bg-white/10', 'text-primary');
+            audioToggle.innerHTML = '<span class="material-symbols-outlined">volume_off</span> 激活环境音';
+        }
+    });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', e => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+    });
+
+    window.addEventListener('mousedown', e => {
+        particles.forEach(p => {
+            const dx = p.x - e.clientX;
+            const dy = p.y - e.clientY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 250) {
+                const angle = Math.atan2(dy, dx);
+                const force = (250 - dist) / 6;
+                p.vx += Math.cos(angle) * force;
+                p.vy += Math.sin(angle) * force;
+            }
+        });
+
+        if (isAudioStarted) {
+            const freq = 150 + (Math.random() * 500);
+            const type = currentMood === 'cyberburst' ? 'square' : 'sine';
+            playZenNote(freq, type, 1.2);
+        }
+    });
+
+    // Start
+    init();
+</script>
+</body></html>
